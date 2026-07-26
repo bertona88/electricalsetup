@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "universe": "Setup Universe",
+  "id": "electrical",
+  "name": "ElectricalSetup",
+  "domain": "electricalsetup.com",
+  "url": "https://electricalsetup.com/",
+  "field": "Electrical and control systems",
+  "status": "preliminary-wrapper",
+  "rebuild": "from-scratch",
+  "plannedInteroperability": true,
+  "interfaceContract": null,
+  "greenfieldContracts": {
+    "vision": "VISION.md",
+    "domainModel": "ELECTRICAL_MODEL_CONTRACT.md",
+    "interface": "INTERFACE_CONTRACT.md",
+    "claimsAndValidation": "CLAIMS_AND_VALIDATION.md",
+    "acceptance": "ACCEPTANCE_TESTS.md"
+  },
+  "firstAcceptedSlice": "Build one source–controller–plant–sensor loop on a connectable schematic, with unit-bearing signals and clearly observable stable, unstable, delayed, saturated, and noisy responses.",
+  "ownershipBoundary": "ElectricalSetup owns circuit and control-plant dynamics; ComputationSetup owns program and algorithm execution; their interface is an explicit signal, event, or control protocol.",
+  "claimGate": "No hardware-safety, EMC, regulatory, component-rating, or design-signoff claim is allowed without calibrated device models and the relevant engineering review.",
+  "currentPrototype": {
+    "status": "temporary-live-demo",
+    "role": "reference-snapshot",
+    "immutable": true,
+    "sharedRuntime": true,
+    "path": "prototype/",
+    "productionRelease": "20260726T002235Z-478235af2650",
+    "verifiedAt": "2026-07-26",
+    "deployedSourceSha256": "478235af26508aa70aa2af5f0196c9868b92ded1bed88106a9aa1a1cd86f8ba5",
+    "entryModel": "assets/simulations/electrical.js",
+    "modelBoundary": {
+      "scope": "A deterministic lumped model couples a delayed digital PID controller to a saturating second-order optical plant with sensor noise and slow thermal droop.",
+      "limits": [
+        "Blocks are behavioral transfer models, not transistor-, HDL-, or PCB-level simulation.",
+        "Timing is represented as a fixed sample delay; clock-domain crossings and quantization spurs are omitted.",
+        "The optical plant is normalized and does not predict absolute irradiance, device lifetime, or safety."
+      ]
+    },
+    "productionManagedSeparately": true,
+    "keepLiveUntilReplacementAuthorized": true
+  },
+  "repository": "https://github.com/bertona88/electricalsetup",
+  "siblings": [
+    {
+      "id": "pic",
+      "name": "PicSetup",
+      "domain": "picsetup.com",
+      "repository": "https://github.com/bertona88/picsetup"
+    },
+    {
+      "id": "biological",
+      "name": "BiologicalSetup",
+      "domain": "biologicalsetup.com",
+      "repository": "https://github.com/bertona88/biologicalsetup"
+    },
+    {
+      "id": "gravity",
+      "name": "GravitySetup",
+      "domain": "gravitysetup.com",
+      "repository": "https://github.com/bertona88/gravitysetup"
+    },
+    {
+      "id": "two-photon",
+      "name": "TwoPhotonLithography",
+      "domain": "twophotonlithography.com",
+      "repository": "https://github.com/bertona88/twophotonlithography"
+    },
+    {
+      "id": "ego",
+      "name": "EgoSetup",
+      "domain": "egosetup.com",
+      "repository": "https://github.com/bertona88/egosetup"
+    },
+    {
+      "id": "quantum",
+      "name": "QuantumSetup",
+      "domain": "quantumsetup.ai",
+      "repository": "https://github.com/bertona88/quantumsetup"
+    },
+    {
+      "id": "noetic",
+      "name": "NoeticSetup",
+      "domain": "noeticsetup.com",
+      "repository": "https://github.com/bertona88/noeticsetup"
+    },
+    {
+      "id": "computation",
+      "name": "ComputationSetup",
+      "domain": "computationsetup.com",
+      "repository": "https://github.com/bertona88/computationsetup"
+    },
+    {
+      "id": "logistic",
+      "name": "LogisticSetup",
+      "domain": "logisticsetup.com",
+      "repository": "https://github.com/bertona88/logisticsetup"
+    },
+    {
+      "id": "molecular",
+      "name": "MolecularSetup",
+      "domain": "molecularsetup.com",
+      "repository": "https://github.com/bertona88/molecularsetup"
+    }
+  ],
+  "opticalSetup": {
+    "repositoryOwner": "LucaGenchi",
+    "external": true,
+    "changesVia": "focused-pull-request",
+    "repository": "https://github.com/LucaGenchi/optics-sketch",
+    "url": "https://opticalsetup.com/sketch/"
+  }
+}
