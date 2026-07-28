@@ -8,7 +8,7 @@ The first kernel is a reduced-order detector-chain model:
 
 - PMT gain is a staged secondary-emission approximation parameterized by bias and dynode count.
 - Pulse voltage is derived from detected charge, a fixed reduced pulse width, and termination impedance.
-- Probe loading includes the high-frequency attenuation created by input capacitance and termination impedance.
+- Probe loading includes the high-frequency attenuation created by input capacitance and termination impedance, but only after both the probe tip and return clip have valid tethers. An unconnected or one-lead probe does not load the modeled apparatus and does not expose readings.
 - Noise combines a documented illustrative contribution from dark events, HV ripple, and photon rate.
 - Lock-in recovery uses coherent phase projection and the square-root integration relationship.
 
