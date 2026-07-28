@@ -6,7 +6,7 @@ The first public specimen is a weak, modulated photon stream detected by a photo
 
 ## Product laws
 
-- The apparatus is continuously alive; there is no Run button.
+- The apparatus opens alive. Run/Pause freezes and resumes visual time without blocking inspection or edits.
 - Every visual change must correspond to modeled state, measurement, or uncertainty.
 - Connections carry an explicit physical type and include return paths.
 - Instruments load the apparatus.
@@ -16,6 +16,8 @@ The first public specimen is a weak, modulated photon stream detected by a photo
 
 ## First release boundary
 
-The browser release proves the reusable laboratory grammar with six bodies: optical stimulus, PMT, HV source, termination, probe, and lock-in. It includes touch placement, direct manipulation, typed tethers, parameter scrubbing, deterministic events, time/phase/probability turns, a PMT interior, causal metrics, undo, and URL replay.
+The browser release proves the reusable laboratory grammar with six bodies: optical stimulus, PMT, HV source, termination, probe, and lock-in. A fresh URL opens the fitted PMT specimen directly on a canvas-first workbench. Components live in a compact bottom tray; settings appear only after selection; measurements appear only after both probe leads are connected; advanced views, experiments, model notes, and history live in one menu.
+
+The release includes touch placement, direct manipulation, typed tethers, parameter scrubbing, deterministic events, time/phase/probability turns, a PMT interior, causal metrics, pause/resume, reset, undo, and URL replay. The blank laboratory remains available by clearing the workbench.
 
 General PCB layout, vendor SPICE models, calibrated safety analysis, and live Opticalsetup co-simulation are intentionally outside this release.

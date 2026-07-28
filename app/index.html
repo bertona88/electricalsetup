@@ -4,8 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#090b0d" />
-    <meta name="description" content="A causal electrical laboratory: build, connect, measure, inspect, and share live experiments." />
-    <title>Electricalsetup — Causal laboratory</title>
+    <meta
+      name="description"
+      content="A touch-first electrical laboratory: move components, connect ports, measure the result, and share the exact setup."
+    />
+    <title>Electricalsetup — Live electrical workbench</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -15,90 +18,101 @@
           <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
           <span><strong>electrical</strong><em>setup</em></span>
         </a>
+
         <div class="experiment-name">
-          <span class="eyebrow">LIVE SPECIMEN</span>
-          <input id="experiment-title" value="Untitled causal experiment" aria-label="Experiment title" />
+          <input id="experiment-title" value="The photon that should have been invisible" aria-label="Setup title" />
         </div>
-        <div class="top-actions">
-          <span id="engine-badge" class="engine-badge"><i></i> starting kernel</span>
-          <button id="undo-button" class="icon-button" aria-label="Undo" title="Undo">↶</button>
-          <button id="share-button" class="primary-button">Seal &amp; share</button>
+
+        <div class="top-actions" aria-label="Simulation controls">
+          <button id="run-button" class="toolbar-button" aria-pressed="true">
+            <span id="run-icon" aria-hidden="true">Ⅱ</span>
+            <span id="run-label">Pause</span>
+          </button>
+          <button id="reset-button" class="toolbar-button">Reset</button>
+          <button id="share-button" class="primary-button">Share</button>
+          <button
+            id="menu-button"
+            class="icon-button menu-button"
+            aria-label="Open lab menu"
+            aria-controls="app-menu"
+            aria-expanded="false"
+          >•••</button>
         </div>
       </header>
 
       <main class="workspace">
-        <aside class="matter-panel panel">
-          <div class="panel-heading">
-            <div>
-              <span class="eyebrow">MATTER</span>
-              <h1>Grow an apparatus</h1>
-            </div>
-            <button id="collapse-matter" class="icon-button" aria-label="Collapse matter panel">‹</button>
-          </div>
-          <p class="panel-intro">Drag a body into the field. Pull from a port to grow a typed connection.</p>
-          <div id="catalog" class="catalog" aria-label="Component catalog"></div>
-          <button id="example-button" class="specimen-button">
-            <span class="specimen-icon">✦</span>
-            <span><strong>Build the photon specimen</strong><small>Assemble through public lab actions</small></span>
-          </button>
-          <div class="model-note">
-            <span>MODEL STATUS</span>
-            <strong>Reduced-order · deterministic</strong>
-            <p>For intuition and experiment design—not hardware sign-off.</p>
-          </div>
-        </aside>
-
         <section id="lab-shell" class="lab-shell" aria-label="Electrical laboratory canvas">
           <canvas id="field-canvas" aria-hidden="true"></canvas>
-          <canvas id="lab-canvas"></canvas>
+          <canvas
+            id="lab-canvas"
+            tabindex="0"
+            role="application"
+            aria-label="Interactive electrical workbench. Drag bodies to move them. Drag between matching colored ports to connect them."
+          ></canvas>
+
           <div id="empty-state" class="empty-state">
             <span class="empty-orbit"></span>
-            <strong>The field is quiet.</strong>
-            <p>Drag matter here, or build the photon specimen.</p>
+            <strong>Start with one component.</strong>
+            <p>Drag a part from the tray into the workbench.</p>
           </div>
+
+          <div id="coachmark" class="coachmark" role="status">
+            <span aria-hidden="true">↘</span>
+            <p><strong>Make it yours.</strong> Tap a component to tune it. Drag a colored port to rewire.</p>
+          </div>
+
           <div id="drag-label" class="drag-label" hidden></div>
 
-          <div class="lab-meta">
+          <div class="lab-meta" aria-hidden="true">
             <span id="coordinate-readout">0.00 m · 0.00 m</span>
             <span id="time-readout">t = 0.000 µs</span>
           </div>
 
-          <div class="view-rail" role="group" aria-label="Turn the laboratory">
-            <button data-view="space" class="active"><span>⌖</span>Space</button>
-            <button data-view="time"><span>∿</span>Time</button>
-            <button data-view="phase"><span>◌</span>Phase</button>
-            <button data-view="probability"><span>⁙</span>Bloom</button>
-          </div>
+          <section id="measurement-dock" class="measurement-dock" aria-label="Connected probe measurements" hidden>
+            <div class="measurement-head">
+              <span class="live-dot" aria-hidden="true"></span>
+              <span>PROBE LIVE</span>
+            </div>
+            <div class="measurement-value">
+              <span>Pulse</span>
+              <strong id="metric-pulse">—</strong>
+            </div>
+            <div class="measurement-value">
+              <span>Gain</span>
+              <strong id="metric-gain">—</strong>
+            </div>
+            <div class="measurement-value">
+              <span>SNR</span>
+              <strong id="metric-snr">—</strong>
+            </div>
+            <div class="measurement-value optional-measurement">
+              <span>Settling</span>
+              <strong id="metric-settling">—</strong>
+            </div>
+            <button id="photon-button" class="inject-button">Inject photon</button>
+          </section>
 
-          <div class="lens-rail" role="group" aria-label="Measurement lens">
-            <span class="eyebrow">LENS</span>
-            <button data-lens="voltage" class="active">Voltage</button>
-            <button data-lens="current">Current</button>
-            <button data-lens="phase">Phase</button>
-            <button data-lens="noise">Noise</button>
-          </div>
-
-          <div class="zoom-rail">
-            <button id="zoom-in" class="icon-button" aria-label="Zoom in">+</button>
-            <button id="zoom-out" class="icon-button" aria-label="Zoom out">−</button>
-            <button id="zoom-fit" class="icon-button text-icon" aria-label="Fit apparatus">FIT</button>
-          </div>
+          <section class="component-tray" aria-label="Component tray">
+            <div class="tray-label">
+              <span>PARTS</span>
+              <small>Drag or tap to add</small>
+            </div>
+            <div id="catalog" class="catalog" aria-label="Available electrical components"></div>
+          </section>
 
           <div id="toast" class="toast" role="status" aria-live="polite"></div>
         </section>
 
-        <aside class="inspector-panel panel">
+        <aside id="inspector-panel" class="inspector-panel panel" aria-hidden="true">
           <div class="panel-heading">
             <div>
-              <span class="eyebrow">EVIDENCE</span>
-              <h2 id="inspector-title">No body selected</h2>
+              <span class="eyebrow">SELECTED COMPONENT</span>
+              <h2 id="inspector-title">No component selected</h2>
             </div>
-            <span id="selection-index" class="selection-index">—</span>
+            <button id="close-inspector" class="icon-button" aria-label="Close component settings">×</button>
           </div>
-          <div id="inspector-empty" class="inspector-empty">
-            <div class="reticle"></div>
-            <p>Touch a body, tether, or event to expose its parameters and consequences.</p>
-          </div>
+          <span id="selection-index" class="selection-index">—</span>
+          <div id="inspector-empty" hidden></div>
           <div id="inspector-content" class="inspector-content" hidden>
             <div id="body-status" class="body-status"></div>
             <div id="parameter-list" class="parameter-list"></div>
@@ -107,38 +121,88 @@
               <button id="remove-button" class="danger-button">Remove</button>
             </div>
           </div>
-
-          <section class="causal-card">
-            <div class="causal-head">
-              <span class="eyebrow">CAUSAL READOUT</span>
-              <button id="photon-button" class="pulse-button">Inject photon</button>
-            </div>
-            <div class="metric-grid">
-              <div><span>Pulse</span><strong id="metric-pulse">—</strong></div>
-              <div><span>Gain</span><strong id="metric-gain">—</strong></div>
-              <div><span>SNR</span><strong id="metric-snr">—</strong></div>
-              <div><span>Settling</span><strong id="metric-settling">—</strong></div>
-            </div>
-            <div id="challenge" class="challenge">
-              <span class="challenge-mark">◇</span>
-              <span><small>RECOVERY CONDITION</small><strong>Connect a detector chain</strong></span>
-            </div>
-          </section>
-
-          <section class="history-card">
-            <div class="history-head">
-              <span class="eyebrow">APPARATUS LOG</span>
-              <button id="clear-button">Clear</button>
-            </div>
-            <ol id="history-list"><li class="muted">No interventions yet.</li></ol>
-          </section>
         </aside>
       </main>
     </div>
 
+    <div id="menu-scrim" class="menu-scrim" aria-hidden="true"></div>
+    <aside id="app-menu" class="app-menu" aria-hidden="true" aria-label="Lab menu">
+      <div class="menu-head">
+        <div>
+          <span class="eyebrow">LAB MENU</span>
+          <h2>Tools stay out of the way.</h2>
+        </div>
+        <button id="close-menu" class="icon-button" aria-label="Close lab menu">×</button>
+      </div>
+
+      <div id="engine-badge" class="engine-badge"><i></i> starting kernel</div>
+
+      <section class="menu-section">
+        <span class="menu-kicker">EXPERIMENT</span>
+        <button id="example-button" class="menu-action">
+          <span class="menu-action-icon">✦</span>
+          <span><strong>Restore the photon specimen</strong><small>PMT detector chain · ready to tune</small></span>
+        </button>
+        <div class="menu-action-row">
+          <button id="undo-button" class="secondary-button">Undo</button>
+          <button id="clear-button" class="secondary-button">Clear workbench</button>
+        </div>
+      </section>
+
+      <section class="menu-section">
+        <span class="menu-kicker">VIEW</span>
+        <div class="segmented-control" role="group" aria-label="Workbench view">
+          <button data-view="space" class="active">Space</button>
+          <button data-view="time">Time</button>
+          <button data-view="phase">Phase</button>
+          <button data-view="probability">Bloom</button>
+        </div>
+        <div class="zoom-controls" aria-label="Workbench zoom">
+          <button id="zoom-out" class="secondary-button" aria-label="Zoom out">−</button>
+          <button id="zoom-fit" class="secondary-button">Fit setup</button>
+          <button id="zoom-in" class="secondary-button" aria-label="Zoom in">+</button>
+        </div>
+      </section>
+
+      <details class="menu-section disclosure">
+        <summary>Guide</summary>
+        <ol>
+          <li>Drag a component to move it.</li>
+          <li>Drag between ports with the same color to connect them.</li>
+          <li>Tap a component to tune its real parameters.</li>
+          <li>Attach a probe to reveal live measurements.</li>
+        </ol>
+      </details>
+
+      <details class="menu-section disclosure">
+        <summary>Model contract</summary>
+        <p>This is a deterministic reduced-order model for intuition and experiment design. It is not a hardware sign-off tool.</p>
+      </details>
+
+      <details class="menu-section disclosure">
+        <summary>Setup Universe</summary>
+        <p>One workbench pattern, different physical laws. Electricalsetup is the electronics bridge between optical, photonic, and biological setups.</p>
+      </details>
+
+      <section class="menu-section goal-card">
+        <span class="menu-kicker">CURRENT TARGET</span>
+        <div id="challenge" class="challenge">
+          <span class="challenge-mark">◇</span>
+          <span><small>RECOVERY CONDITION</small><strong>SNR ≥ 6 · |HV| ≤ 900 V</strong></span>
+        </div>
+      </section>
+
+      <section class="menu-section history-card">
+        <div class="history-head">
+          <span class="menu-kicker">RECENT ACTIONS</span>
+        </div>
+        <ol id="history-list"><li class="muted">No interventions yet.</li></ol>
+      </section>
+    </aside>
+
     <dialog id="dive-dialog" class="dive-dialog">
       <div class="dive-top">
-        <div><span class="eyebrow">SEMANTIC DIVE</span><h2 id="dive-title">Inside body</h2></div>
+        <div><span class="eyebrow">SEMANTIC DIVE</span><h2 id="dive-title">Inside component</h2></div>
         <button id="close-dive" class="icon-button" aria-label="Close interior">×</button>
       </div>
       <canvas id="dive-canvas" width="1200" height="620"></canvas>

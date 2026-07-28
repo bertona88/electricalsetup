@@ -1,6 +1,7 @@
 export type FieldRenderer = {
   setMode(mode: number): void;
   setEnergy(energy: number): void;
+  setPaused(paused: boolean): void;
   resize(): void;
   destroy(): void;
 };
@@ -75,7 +76,20 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
   let mode = 0;
   let energy = 0;
   let running = true;
-  const start = performance.now();
+  let paused = false;
+  let pausedAt = 0;
+  let start = performance.now();
+  const clock = () => ((paused ? pausedAt : performance.now()) - start) / 1000;
+  const setPaused = (value: boolean) => {
+    if (value === paused) return;
+    if (value) {
+      pausedAt = performance.now();
+      paused = true;
+    } else {
+      start += performance.now() - pausedAt;
+      paused = false;
+    }
+  };
 
   const resize = () => {
     const dpr = Math.min(devicePixelRatio, 2);
@@ -90,7 +104,7 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
   const frame = () => {
     if (!running) return;
     resize();
-    const values = new Float32Array([canvas.width, canvas.height, (performance.now() - start) / 1000, mode, energy, 0, 0, 0]);
+    const values = new Float32Array([canvas.width, canvas.height, clock(), mode, energy, 0, 0, 0]);
     device.queue.writeBuffer(buffer, 0, values);
     const encoder = device.createCommandEncoder();
     const pass = encoder.beginRenderPass({
@@ -112,6 +126,7 @@ fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
   return {
     setMode(value) { mode = value; },
     setEnergy(value) { energy = value; },
+    setPaused,
     resize,
     destroy() { running = false; device.destroy(); },
   };
@@ -122,7 +137,20 @@ function createFallback(canvas: HTMLCanvasElement): FieldRenderer {
   let mode = 0;
   let energy = 0;
   let running = true;
-  const start = performance.now();
+  let paused = false;
+  let pausedAt = 0;
+  let start = performance.now();
+  const clock = () => ((paused ? pausedAt : performance.now()) - start) / 1000;
+  const setPaused = (value: boolean) => {
+    if (value === paused) return;
+    if (value) {
+      pausedAt = performance.now();
+      paused = true;
+    } else {
+      start += performance.now() - pausedAt;
+      paused = false;
+    }
+  };
   const resize = () => {
     const dpr = Math.min(devicePixelRatio, 2);
     const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
@@ -141,7 +169,7 @@ function createFallback(canvas: HTMLCanvasElement): FieldRenderer {
     for (let x = 0; x < w; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
     for (let y = 0; y < h; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
     if (mode > 0 && energy > 0) {
-      const t = (performance.now() - start) / 1000;
+      const t = clock();
       const radius = (40 + ((t * 85) % Math.max(80, w))) * dpr;
       ctx.strokeStyle = mode === 2 ? "rgba(182,156,255,.10)" : "rgba(105,231,220,.09)";
       ctx.beginPath(); ctx.arc(w * .5, h * .5, radius, 0, Math.PI * 2); ctx.stroke();
@@ -152,6 +180,7 @@ function createFallback(canvas: HTMLCanvasElement): FieldRenderer {
   return {
     setMode(value) { mode = value; },
     setEnergy(value) { energy = value; },
+    setPaused,
     resize,
     destroy() { running = false; },
   };

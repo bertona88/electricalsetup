@@ -6,6 +6,7 @@
   "homepage": "https://electricalsetup.com/",
   "type": "module",
   "scripts": {
+    "dev": "node tests/preview-server.mjs",
     "build": "npm run build:ts && npm run build:wasm",
     "build:ts": "tsc",
     "build:wasm": "node tests/build-wasm.mjs",

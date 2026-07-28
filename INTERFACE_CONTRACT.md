@@ -15,13 +15,15 @@ The public laboratory and the bundled PMT specimen use the same action boundary:
 
 The UI may animate a sequence of these actions, but it may not bypass them by injecting a hidden fixture.
 
+Run/Pause controls the renderer clock and is intentionally local UI state: it does not change apparatus topology or parameter values and is not serialized. Reset rebuilds the reference PMT specimen through the same public add/connect actions.
+
 ## Typed ports
 
 The first schema defines `light`, `hv`, `signal`, `reference`, and `return` ports. A tether is valid only when both endpoints carry the same type. Every tether stores endpoint identity, type, and geometric length.
 
 ## URL capsule
 
-`#es1.<base64url-json>` contains schema version, title, seed, logical time, event index, view, lens, bodies, parameters, tethers, and selection. Restoration rejects unknown body kinds, non-finite coordinates, unsupported schema versions, more than 60 bodies, or more than 180 tethers.
+`#es1.<base64url-json>` contains schema version, title, seed, logical time, event index, view, lens, bodies, parameters, tethers, and selection. Share writes a selection-free capsule without disturbing local selection. Restoration rejects unknown body kinds, non-finite coordinates, unsupported schema versions, more than 60 bodies, or more than 180 tethers.
 
 Waveform buffers and rendered particles are never serialized; they are reconstructed deterministically.
 

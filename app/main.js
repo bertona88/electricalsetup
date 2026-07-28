@@ -2,7 +2,6 @@ import { createFieldRenderer } from "./gpu-field.js";
 const $ = (selector) => document.querySelector(selector);
 const canvas = $("#lab-canvas");
 const fieldCanvas = $("#field-canvas");
-const lab = $("#lab-shell");
 const ctx = canvas.getContext("2d");
 const DEFINITIONS = {
     "photon-source": {
@@ -111,6 +110,7 @@ let gesture = null;
 let catalogDrag = null;
 let animationTime = 0;
 let toastTimer = 0;
+let simulationRunning = true;
 const pointers = new Map();
 let pinchStart = null;
 const worker = new Worker("./physics-worker.js", { type: "module" });
@@ -201,7 +201,7 @@ function clearLab(record = true) {
         state.title = "Untitled causal experiment";
     }, record);
 }
-async function buildExample() {
+async function buildExample(animate = true, notify = true) {
     clearLab(state.bodies.length > 0);
     actionLog = [];
     state.title = "The photon that should have been invisible";
@@ -213,7 +213,8 @@ async function buildExample() {
     const ids = {};
     for (const [kind, x, y] of placements) {
         ids[kind] = addBody(kind, x, y, false);
-        await wait(45);
+        if (animate)
+            await wait(45);
     }
     const connections = [
         ["photon-source", "light", "photomultiplier", "window"],
@@ -229,13 +230,23 @@ async function buildExample() {
     ];
     for (const [a, ap, b, bp] of connections) {
         connect(ids[a], ap, ids[b], bp, false);
-        await wait(35);
+        if (animate)
+            await wait(35);
     }
-    state.selectedBodyId = ids.photomultiplier;
+    state.selectedBodyId = null;
     state.event = 1;
     camera = { x: 0, y: 0, scale: 1 };
+    actionLog = ["Reference PMT setup loaded"];
     mutate("Injected deterministic photon", () => { }, false);
-    showToast("Specimen assembled through 16 public lab actions");
+    requestAnimationFrame(fitApparatus);
+    if (notify)
+        showToast(animate ? "Photon specimen assembled" : "Reference setup restored");
+}
+async function resetExample() {
+    window.history.replaceState(null, "", `${location.pathname}${location.search}`);
+    await buildExample(false, false);
+    setSimulationRunning(true, false);
+    showToast("Reference setup restored");
 }
 function wait(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 function getBody(id) { return state.bodies.find((body) => body.id === id); }
@@ -293,7 +304,8 @@ function draw() {
         drawPhaseView(width, height);
     if (state.view === "probability")
         drawProbabilityView(width, height);
-    animationTime += .016;
+    if (simulationRunning)
+        animationTime += .016;
     requestAnimationFrame(draw);
 }
 function drawTethers() {
@@ -304,10 +316,14 @@ function drawTethers() {
         const aw = portPosition(aBody, tether.from.portId), bw = portPosition(bBody, tether.to.portId);
         const a = worldToScreen(aw.x, aw.y), b = worldToScreen(bw.x, bw.y);
         drawWire(a.x, a.y, b.x, b.y, tether.type, false);
-        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-        ctx.font = "8px 'DM Mono'";
-        ctx.fillStyle = "rgba(220,232,228,.4)";
-        ctx.fillText(`${tether.lengthM.toFixed(2)} m`, mx + 4, my - 5);
+        const touchesSelection = state.selectedBodyId &&
+            (tether.from.bodyId === state.selectedBodyId || tether.to.bodyId === state.selectedBodyId);
+        if (touchesSelection) {
+            const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+            ctx.font = "8px 'DM Mono'";
+            ctx.fillStyle = "rgba(220,232,228,.4)";
+            ctx.fillText(`${tether.lengthM.toFixed(2)} m`, mx + 4, my - 5);
+        }
     }
 }
 function drawWire(ax, ay, bx, by, type, loose) {
@@ -527,10 +543,11 @@ function roundRect(context, x, y, w, h, r) {
 }
 function hitTest(screenX, screenY) {
     const world = screenToWorld(screenX, screenY);
+    const portHitRadius = window.matchMedia("(pointer: coarse)").matches ? 22 : 15;
     for (const body of [...state.bodies].reverse()) {
         for (const port of DEFINITIONS[body.kind].ports) {
             const pos = portPosition(body, port.id);
-            if (Math.hypot(world.x - pos.x, world.y - pos.y) < 13 / camera.scale)
+            if (Math.hypot(world.x - pos.x, world.y - pos.y) < portHitRadius / camera.scale)
                 return { body, port };
         }
         if (Math.abs(world.x - body.x) < BODY_W / 2 && Math.abs(world.y - body.y) < BODY_H / 2)
@@ -552,9 +569,10 @@ canvas.addEventListener("pointerdown", (event) => {
         gesture = { kind: "wire", pointerId: event.pointerId, startX: point.x, startY: point.y, from: { bodyId: hit.body.id, portId: hit.port.id } };
     }
     else if (hit?.body) {
-        state.selectedBodyId = hit.body.id;
-        renderUi();
-        gesture = { kind: "body", pointerId: event.pointerId, startX: point.x, startY: point.y, bodyId: hit.body.id, originX: hit.body.x, originY: hit.body.y };
+        gesture = {
+            kind: "body", pointerId: event.pointerId, startX: point.x, startY: point.y, bodyId: hit.body.id,
+            originX: hit.body.x, originY: hit.body.y, started: false, threshold: event.pointerType === "mouse" ? 3 : 9,
+        };
     }
     else {
         state.selectedBodyId = null;
@@ -576,6 +594,10 @@ canvas.addEventListener("pointermove", (event) => {
         return;
     const dx = (point.x - gesture.startX) / camera.scale, dy = (point.y - gesture.startY) / camera.scale;
     if (gesture.kind === "body") {
+        const distance = Math.hypot(point.x - gesture.startX, point.y - gesture.startY);
+        if (!gesture.started && distance < (gesture.threshold || 3))
+            return;
+        gesture.started = true;
         const body = getBody(gesture.bodyId);
         if (body) {
             body.x = gesture.originX + dx;
@@ -595,8 +617,10 @@ canvas.addEventListener("pointerup", (event) => {
     if (gesture?.kind === "wire" && gesture.from && hit?.port) {
         connect(gesture.from.bodyId, gesture.from.portId, hit.body.id, hit.port.id);
     }
-    if (gesture?.kind === "body" && Math.hypot(point.x - gesture.startX, point.y - gesture.startY) > 3) {
-        actionLog.unshift(`Moved ${DEFINITIONS[getBody(gesture.bodyId).kind].label}`);
+    if (gesture?.kind === "body") {
+        state.selectedBodyId = gesture.bodyId;
+        if (gesture.started)
+            actionLog.unshift(`Moved ${DEFINITIONS[getBody(gesture.bodyId).kind].label}`);
         renderUi();
     }
     pointers.delete(event.pointerId);
@@ -626,34 +650,67 @@ function buildCatalog() {
         const button = document.createElement("button");
         button.className = "catalog-item";
         button.style.setProperty("--kind-color", def.color);
+        button.type = "button";
+        button.setAttribute("aria-label", `Add ${def.label}`);
         button.innerHTML = `<span class="catalog-glyph">${def.short}</span><span><strong>${def.label}</strong><small>${def.family}</small></span><span class="port-count">${def.ports.length} PORT${def.ports.length > 1 ? "S" : ""}</span>`;
         button.addEventListener("pointerdown", (event) => {
-            event.preventDefault();
-            catalogDrag = { kind, pointerId: event.pointerId };
-            const label = $("#drag-label");
-            label.hidden = false;
-            label.textContent = `Place ${def.label}`;
-            moveDragLabel(event.clientX, event.clientY);
-            button.setPointerCapture(event.pointerId);
+            catalogDrag = { kind, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, active: false };
         });
-        button.addEventListener("pointermove", (event) => { if (catalogDrag?.pointerId === event.pointerId)
-            moveDragLabel(event.clientX, event.clientY); });
+        button.addEventListener("pointermove", (event) => {
+            if (catalogDrag?.pointerId !== event.pointerId)
+                return;
+            const dx = event.clientX - catalogDrag.startX, dy = event.clientY - catalogDrag.startY;
+            if (!catalogDrag.active) {
+                if (Math.hypot(dx, dy) < 8)
+                    return;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    catalogDrag = null;
+                    return;
+                }
+                catalogDrag.active = true;
+                button.setPointerCapture(event.pointerId);
+                const label = $("#drag-label");
+                label.hidden = false;
+                label.textContent = `Place ${def.label}`;
+            }
+            event.preventDefault();
+            moveDragLabel(event.clientX, event.clientY);
+        });
         button.addEventListener("pointerup", (event) => {
             if (catalogDrag?.pointerId !== event.pointerId)
                 return;
-            const rect = lab.getBoundingClientRect();
-            if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
-                const world = screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
-                addBody(kind, world.x, world.y);
+            if (!catalogDrag.active) {
+                addCatalogBodyAtCenter(kind);
             }
-            else
-                showToast("Drop the body inside the field");
-            catalogDrag = null;
-            $("#drag-label").hidden = true;
+            else {
+                const rect = canvas.getBoundingClientRect();
+                const trayRect = $(".component-tray").getBoundingClientRect();
+                const inspector = $("#inspector-panel");
+                const inspectorRect = inspector.getBoundingClientRect();
+                const inside = (r) => event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom;
+                const usable = inside(rect) && !inside(trayRect) && !(inspector.classList.contains("open") && inside(inspectorRect));
+                if (usable) {
+                    const world = screenToWorld(event.clientX - rect.left, event.clientY - rect.top);
+                    addBody(kind, world.x, world.y);
+                }
+                else
+                    showToast("Drop the component onto the open workbench");
+            }
+            finishCatalogDrag();
         });
+        button.addEventListener("pointercancel", finishCatalogDrag);
+        button.addEventListener("click", (event) => { if (event.detail === 0)
+            addCatalogBodyAtCenter(kind); });
         catalog.append(button);
     }
 }
+function addCatalogBodyAtCenter(kind) {
+    const stagger = (state.bodies.length % 5 - 2) * 18;
+    const world = screenToWorld(canvas.clientWidth / 2 + stagger, Math.max(150, canvas.clientHeight * .46) + stagger * .35);
+    addBody(kind, world.x, world.y);
+    showToast(`${DEFINITIONS[kind].label} added`);
+}
+function finishCatalogDrag() { catalogDrag = null; $("#drag-label").hidden = true; }
 function moveDragLabel(x, y) { const label = $("#drag-label"); label.style.left = `${x + 12}px`; label.style.top = `${y + 12}px`; }
 function completeness() {
     const kinds = new Set(state.bodies.map((b) => b.kind));
@@ -666,15 +723,21 @@ function completeness() {
 function completenessForBody(id) { return state.tethers.filter((t) => t.from.bodyId === id || t.to.bodyId === id).length > 0 ? 1 : 0; }
 function bodyOf(kind) { return state.bodies.find((body) => body.kind === kind); }
 function param(kind, key, fallback) { return bodyOf(kind)?.parameters[key] ?? fallback; }
+function hasConnectedProbe() {
+    return state.bodies.some((body) => body.kind === "probe" && ["tip", "clip"].every((portId) => state.tethers.some((tether) => (tether.from.bodyId === body.id && tether.from.portId === portId) ||
+        (tether.to.bodyId === body.id && tether.to.portId === portId))));
+}
 function simulate() {
     if (!engineReady)
         return;
+    const probeConnected = hasConnectedProbe();
     worker.postMessage({ type: "simulate", revision: workerRevision, apparatus: {
             photonRateKhz: param("photon-source", "rateKhz", 0), modulationHz: param("photon-source", "modulationHz", 137),
             quantumEfficiency: param("photomultiplier", "qe", 0), stages: param("photomultiplier", "stages", 10),
             darkCps: param("photomultiplier", "darkCps", 80), voltage: param("hv-supply", "voltage", 0),
             rippleMv: param("hv-supply", "rippleMv", 8), terminationOhms: param("termination", "ohms", 50),
-            probePf: param("probe", "capacitancePf", 0), probeMohm: param("probe", "resistanceMohm", 10),
+            probePf: probeConnected ? param("probe", "capacitancePf", 0) : 0,
+            probeMohm: probeConnected ? param("probe", "resistanceMohm", 10) : 0,
             phaseDeg: param("lock-in", "phaseDeg", 0), timeConstantMs: param("lock-in", "timeConstantMs", 10),
             filterOrder: param("lock-in", "filterOrder", 1), completeness: completeness(), event: state.event,
         } });
@@ -693,21 +756,38 @@ function updateMetrics() {
     field?.setEnergy(state.event ? Math.min(1, (metrics?.snr || 0) / 8) : 0);
 }
 function renderUi() {
-    $("#empty-state").classList.toggle("hidden", state.bodies.length > 0);
+    $("#empty-state").hidden = state.bodies.length > 0;
     $("#experiment-title").setAttribute("value", state.title);
     $("#experiment-title").value = state.title;
     $("#time-readout").textContent = `t = ${(state.logicalTime * 1e6).toFixed(3)} µs · seed ${state.seed}`;
-    document.querySelectorAll("[data-view]").forEach((el) => el.classList.toggle("active", el.dataset.view === state.view));
+    const probeConnected = hasConnectedProbe();
+    if (!probeConnected && state.view !== "space") {
+        state.view = "space";
+        field?.setMode(0);
+    }
+    document.querySelectorAll("[data-view]").forEach((el) => {
+        const active = el.dataset.view === state.view;
+        el.classList.toggle("active", active);
+        el.setAttribute("aria-pressed", String(active));
+        if (el instanceof HTMLButtonElement)
+            el.disabled = !probeConnected && (el.dataset.view !== "space");
+    });
     document.querySelectorAll("[data-lens]").forEach((el) => el.classList.toggle("active", el.dataset.lens === state.lens));
     const selected = state.selectedBodyId ? getBody(state.selectedBodyId) : null;
+    const inspector = $("#inspector-panel");
+    inspector.classList.toggle("open", !!selected);
+    inspector.setAttribute("aria-hidden", String(!selected));
+    inspector.inert = !selected;
     $("#inspector-empty").hidden = !!selected;
     $("#inspector-content").hidden = !selected;
     if (selected)
         renderInspector(selected);
     else {
-        $("#inspector-title").textContent = "No body selected";
+        $("#inspector-title").textContent = "No component selected";
         $("#selection-index").textContent = "—";
     }
+    $("#measurement-dock").hidden = !probeConnected;
+    $("#coachmark").hidden = !!selected || state.bodies.length === 0;
     const list = $("#history-list");
     list.innerHTML = actionLog.length ? actionLog.map((item, index) => `<li>${index === 0 ? "NOW · " : ""}${escapeHtml(item)}</li>`).join("") : `<li class="muted">No interventions yet.</li>`;
     updateMetrics();
@@ -856,7 +936,7 @@ function seal() {
     for (const byte of bytes)
         binary += String.fromCharCode(byte);
     const encoded = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    location.hash = `es1.${encoded}`;
+    window.history.replaceState(null, "", `${location.pathname}${location.search}#es1.${encoded}`);
     navigator.clipboard?.writeText(location.href).then(() => showToast("Exact apparatus URL copied")).catch(() => showToast("Apparatus sealed into this URL"));
 }
 function restore() {
@@ -874,14 +954,18 @@ function restore() {
             if (!DEFINITIONS[body.kind] || !Number.isFinite(body.x) || !Number.isFinite(body.y))
                 throw new Error("Invalid body");
         state = value;
+        if (!hasConnectedProbe() && state.view !== "space")
+            state.view = "space";
+        field?.setMode(["space", "time", "phase", "probability"].indexOf(state.view));
         actionLog = [`Replayed sealed apparatus · ${state.bodies.length} bodies · ${state.tethers.length} tethers`];
         workerRevision++;
         renderUi();
         simulate();
+        requestAnimationFrame(fitApparatus);
         return true;
     }
     catch {
-        window.history.replaceState(null, "", location.pathname);
+        window.history.replaceState(null, "", `${location.pathname}${location.search}`);
         showToast("That apparatus capsule could not be verified");
         return false;
     }
@@ -894,23 +978,68 @@ function fitApparatus() {
     }
     const xs = state.bodies.map((b) => b.x), ys = state.bodies.map((b) => b.y);
     const minX = Math.min(...xs) - 100, maxX = Math.max(...xs) + 100, minY = Math.min(...ys) - 100, maxY = Math.max(...ys) + 100;
-    const scale = Math.min(canvas.clientWidth / (maxX - minX), canvas.clientHeight / (maxY - minY), 1.35);
+    const usableHeight = Math.max(280, canvas.clientHeight - 110);
+    const scale = Math.min(canvas.clientWidth / (maxX - minX), usableHeight / (maxY - minY), 1.35);
     camera.scale = clamp(scale, .45, 2);
     camera.x = canvas.clientWidth / (2 * camera.scale) - (minX + maxX) / 2;
     camera.y = canvas.clientHeight / (2 * camera.scale) - (minY + maxY) / 2;
 }
-document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => { state.view = button.dataset.view; field.setMode(["space", "time", "phase", "probability"].indexOf(state.view)); renderUi(); }));
+function setSimulationRunning(value, notify = true) {
+    simulationRunning = value;
+    field?.setPaused(!value);
+    const button = $("#run-button");
+    button.setAttribute("aria-pressed", String(value));
+    button.setAttribute("aria-label", value ? "Pause simulation" : "Run simulation");
+    $("#run-icon").textContent = value ? "Ⅱ" : "▶";
+    $("#run-label").textContent = value ? "Pause" : "Run";
+    if (notify)
+        showToast(value ? "Simulation running" : "Simulation paused");
+}
+function setMenuOpen(open, moveFocus = true) {
+    const menu = $("#app-menu");
+    const scrim = $("#menu-scrim");
+    const button = $("#menu-button");
+    menu.classList.toggle("open", open);
+    scrim.classList.toggle("open", open);
+    menu.setAttribute("aria-hidden", String(!open));
+    scrim.setAttribute("aria-hidden", String(!open));
+    menu.inert = !open;
+    button.setAttribute("aria-expanded", String(open));
+    if (moveFocus) {
+        if (open)
+            $("#close-menu").focus();
+        else if (menu.contains(document.activeElement))
+            button.focus();
+    }
+}
+document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => {
+    const view = button.dataset.view;
+    if (view !== "space" && !hasConnectedProbe()) {
+        showToast("Attach both probe leads to open measurement views");
+        return;
+    }
+    state.view = view;
+    field?.setMode(["space", "time", "phase", "probability"].indexOf(state.view));
+    renderUi();
+}));
 document.querySelectorAll("[data-lens]").forEach((button) => button.addEventListener("click", () => { state.lens = button.dataset.lens; renderUi(); }));
 $("#experiment-title").addEventListener("change", (event) => { state.title = event.target.value.trim() || "Untitled causal experiment"; renderUi(); });
-$("#example-button").addEventListener("click", buildExample);
+$("#run-button").addEventListener("click", () => setSimulationRunning(!simulationRunning));
+$("#reset-button").addEventListener("click", resetExample);
+$("#example-button").addEventListener("click", async () => { setMenuOpen(false); await buildExample(true); });
 $("#share-button").addEventListener("click", seal);
-$("#clear-button").addEventListener("click", () => clearLab());
+$("#menu-button").addEventListener("click", () => setMenuOpen(!$("#app-menu").classList.contains("open")));
+$("#close-menu").addEventListener("click", () => setMenuOpen(false));
+$("#menu-scrim").addEventListener("click", () => setMenuOpen(false));
+$("#clear-button").addEventListener("click", () => { if (window.confirm("Clear every component and connection?"))
+    clearLab(); });
 $("#remove-button").addEventListener("click", removeSelected);
+$("#close-inspector").addEventListener("click", () => { state.selectedBodyId = null; renderUi(); canvas.focus(); });
 $("#photon-button").addEventListener("click", () => mutate(`Injected photon event ${state.event + 1}`, () => state.event++));
 $("#dive-button").addEventListener("click", () => { const body = state.selectedBodyId ? getBody(state.selectedBodyId) : null; if (body)
     openDive(body); });
 $("#close-dive").addEventListener("click", () => $("#dive-dialog").close());
-$("#bloom-button").addEventListener("click", () => { $("#dive-dialog").close(); state.view = "probability"; field.setMode(3); renderUi(); showToast("One event expanded into 1,000 deterministic trials"); });
+$("#bloom-button").addEventListener("click", () => { $("#dive-dialog").close(); state.view = "probability"; field?.setMode(3); renderUi(); showToast("One event expanded into 1,000 deterministic trials"); });
 $("#undo-button").addEventListener("click", () => { const previous = history.pop(); if (previous) {
     state = previous;
     actionLog.unshift("Undid last intervention");
@@ -924,19 +1053,37 @@ $("#zoom-fit").addEventListener("click", fitApparatus);
 window.addEventListener("hashchange", restore);
 window.addEventListener("resize", () => field?.resize());
 window.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z")
+    const editing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+    if (!editing && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z")
         $("#undo-button").click();
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         seal();
     }
-    if (event.key === "Escape" && $("#dive-dialog").open)
-        $("#dive-dialog").close();
+    if (event.code === "Space" && !editing && (event.target === document.body || event.target === canvas)) {
+        event.preventDefault();
+        setSimulationRunning(!simulationRunning);
+    }
+    if (event.key === "Escape") {
+        if ($("#dive-dialog").open)
+            $("#dive-dialog").close();
+        else if ($("#app-menu").classList.contains("open"))
+            setMenuOpen(false);
+        else if (state.selectedBodyId) {
+            state.selectedBodyId = null;
+            renderUi();
+            canvas.focus();
+        }
+    }
 });
 async function boot() {
     buildCatalog();
     field = await createFieldRenderer(fieldCanvas);
-    restore();
+    const restored = restore();
+    if (!restored)
+        await buildExample(false, false);
+    setMenuOpen(false, false);
+    setSimulationRunning(true, false);
     renderUi();
     requestAnimationFrame(draw);
 }
