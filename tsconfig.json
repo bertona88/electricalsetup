@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "WebWorker"],
+    "types": ["@webgpu/types"],
+    "rootDir": "src",
+    "outDir": "app",
+    "strict": true,
+    "skipLibCheck": true,
+    "removeComments": true
+  },
+  "include": ["src/**/*.ts"]
+}
