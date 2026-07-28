@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#090b0d" />
+    <meta name="description" content="A causal electrical laboratory: build, connect, measure, inspect, and share live experiments." />
+    <title>Electricalsetup — Causal laboratory</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="Electricalsetup home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span><strong>electrical</strong><em>setup</em></span>
+        </a>
+        <div class="experiment-name">
+          <span class="eyebrow">LIVE SPECIMEN</span>
+          <input id="experiment-title" value="Untitled causal experiment" aria-label="Experiment title" />
+        </div>
+        <div class="top-actions">
+          <span id="engine-badge" class="engine-badge"><i></i> starting kernel</span>
+          <button id="undo-button" class="icon-button" aria-label="Undo" title="Undo">↶</button>
+          <button id="share-button" class="primary-button">Seal &amp; share</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="matter-panel panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">MATTER</span>
+              <h1>Grow an apparatus</h1>
+            </div>
+            <button id="collapse-matter" class="icon-button" aria-label="Collapse matter panel">‹</button>
+          </div>
+          <p class="panel-intro">Drag a body into the field. Pull from a port to grow a typed connection.</p>
+          <div id="catalog" class="catalog" aria-label="Component catalog"></div>
+          <button id="example-button" class="specimen-button">
+            <span class="specimen-icon">✦</span>
+            <span><strong>Build the photon specimen</strong><small>Assemble through public lab actions</small></span>
+          </button>
+          <div class="model-note">
+            <span>MODEL STATUS</span>
+            <strong>Reduced-order · deterministic</strong>
+            <p>For intuition and experiment design—not hardware sign-off.</p>
+          </div>
+        </aside>
+
+        <section id="lab-shell" class="lab-shell" aria-label="Electrical laboratory canvas">
+          <canvas id="field-canvas" aria-hidden="true"></canvas>
+          <canvas id="lab-canvas"></canvas>
+          <div id="empty-state" class="empty-state">
+            <span class="empty-orbit"></span>
+            <strong>The field is quiet.</strong>
+            <p>Drag matter here, or build the photon specimen.</p>
+          </div>
+          <div id="drag-label" class="drag-label" hidden></div>
+
+          <div class="lab-meta">
+            <span id="coordinate-readout">0.00 m · 0.00 m</span>
+            <span id="time-readout">t = 0.000 µs</span>
+          </div>
+
+          <div class="view-rail" role="group" aria-label="Turn the laboratory">
+            <button data-view="space" class="active"><span>⌖</span>Space</button>
+            <button data-view="time"><span>∿</span>Time</button>
+            <button data-view="phase"><span>◌</span>Phase</button>
+            <button data-view="probability"><span>⁙</span>Bloom</button>
+          </div>
+
+          <div class="lens-rail" role="group" aria-label="Measurement lens">
+            <span class="eyebrow">LENS</span>
+            <button data-lens="voltage" class="active">Voltage</button>
+            <button data-lens="current">Current</button>
+            <button data-lens="phase">Phase</button>
+            <button data-lens="noise">Noise</button>
+          </div>
+
+          <div class="zoom-rail">
+            <button id="zoom-in" class="icon-button" aria-label="Zoom in">+</button>
+            <button id="zoom-out" class="icon-button" aria-label="Zoom out">−</button>
+            <button id="zoom-fit" class="icon-button text-icon" aria-label="Fit apparatus">FIT</button>
+          </div>
+
+          <div id="toast" class="toast" role="status" aria-live="polite"></div>
+        </section>
+
+        <aside class="inspector-panel panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">EVIDENCE</span>
+              <h2 id="inspector-title">No body selected</h2>
+            </div>
+            <span id="selection-index" class="selection-index">—</span>
+          </div>
+          <div id="inspector-empty" class="inspector-empty">
+            <div class="reticle"></div>
+            <p>Touch a body, tether, or event to expose its parameters and consequences.</p>
+          </div>
+          <div id="inspector-content" class="inspector-content" hidden>
+            <div id="body-status" class="body-status"></div>
+            <div id="parameter-list" class="parameter-list"></div>
+            <div class="inspector-actions">
+              <button id="dive-button" class="secondary-button">Enter body</button>
+              <button id="remove-button" class="danger-button">Remove</button>
+            </div>
+          </div>
+
+          <section class="causal-card">
+            <div class="causal-head">
+              <span class="eyebrow">CAUSAL READOUT</span>
+              <button id="photon-button" class="pulse-button">Inject photon</button>
+            </div>
+            <div class="metric-grid">
+              <div><span>Pulse</span><strong id="metric-pulse">—</strong></div>
+              <div><span>Gain</span><strong id="metric-gain">—</strong></div>
+              <div><span>SNR</span><strong id="metric-snr">—</strong></div>
+              <div><span>Settling</span><strong id="metric-settling">—</strong></div>
+            </div>
+            <div id="challenge" class="challenge">
+              <span class="challenge-mark">◇</span>
+              <span><small>RECOVERY CONDITION</small><strong>Connect a detector chain</strong></span>
+            </div>
+          </section>
+
+          <section class="history-card">
+            <div class="history-head">
+              <span class="eyebrow">APPARATUS LOG</span>
+              <button id="clear-button">Clear</button>
+            </div>
+            <ol id="history-list"><li class="muted">No interventions yet.</li></ol>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <dialog id="dive-dialog" class="dive-dialog">
+      <div class="dive-top">
+        <div><span class="eyebrow">SEMANTIC DIVE</span><h2 id="dive-title">Inside body</h2></div>
+        <button id="close-dive" class="icon-button" aria-label="Close interior">×</button>
+      </div>
+      <canvas id="dive-canvas" width="1200" height="620"></canvas>
+      <div class="dive-footer">
+        <p id="dive-copy"></p>
+        <button id="bloom-button" class="primary-button">Bloom this event</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
